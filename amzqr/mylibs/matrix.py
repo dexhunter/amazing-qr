@@ -140,49 +140,71 @@ def get_mask_patterns(mm):
 
 
 def compute_score(m):
+    columns = list(zip(*m))
+
     def evaluation1(m):
         def ev1(ma):
             sc = 0
             for mi in ma:
-                j = 0
-                while j < len(mi) - 4:
-                    n = 4
-                    while mi[j : j + n + 1] in [[1] * (n + 1), [0] * (n + 1)]:
-                        n += 1
-                    (sc, j) = (sc + n - 2, j + n) if n > 4 else (sc, j + 1)
+                previous = None
+                run = 0
+                for value in mi:
+                    if value == previous:
+                        run += 1
+                    else:
+                        if run >= 5 and previous in (0, 1):
+                            sc += run - 2
+                        previous = value
+                        run = 1
+                if run >= 5 and previous in (0, 1):
+                    sc += run - 2
             return sc
 
-        return ev1(m) + ev1(list(map(list, zip(*m))))
+        return ev1(m) + ev1(columns)
 
     def evaluation2(m):
         sc = 0
-        for i in range(len(m) - 1):
-            for j in range(len(m) - 1):
-                sc += 3 if m[i][j] == m[i + 1][j] == m[i][j + 1] == m[i + 1][j + 1] else 0
+        for row, below in zip(m, m[1:]):
+            previous = None
+            matched = False
+            for top, bottom in zip(row, below):
+                if top == bottom:
+                    if matched and top == previous:
+                        sc += 3
+                    previous = top
+                    matched = True
+                else:
+                    matched = False
         return sc
 
     def evaluation3(m):
-        def ev3(ma):
+        def ev3(ma, pattern_type=list):
             sc = 0
+            forward = pattern_type([1, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0])
+            reverse = pattern_type([0, 0, 0, 0, 1, 0, 1, 1, 1, 0, 1])
             for mi in ma:
                 j = 0
-                while j < len(mi) - 10:
-                    if mi[j : j + 11] == [1, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0]:
+                stop = len(mi) - 10
+                while j < stop:
+                    # Both patterns have these modules in common.
+                    if mi[j + 5] != 0 or mi[j + 6] != 1:
+                        j += 1
+                        continue
+                    window = mi[j : j + 11]
+                    if window == forward:
                         sc += 40
                         j += 7
-                    elif mi[j : j + 11] == [0, 0, 0, 0, 1, 0, 1, 1, 1, 0, 1]:
+                    elif window == reverse:
                         sc += 40
                         j += 4
                     else:
                         j += 1
             return sc
 
-        return ev3(m) + ev3(list(map(list, zip(*m))))
+        return ev3(m) + ev3(columns, tuple)
 
     def evaluation4(m):
-        darknum = 0
-        for i in m:
-            darknum += sum(i)
+        darknum = sum(map(sum, m))
         percent = darknum / (len(m) ** 2) * 100
         s = int((50 - percent) / 5) * 5
         return 2 * s if s >= 0 else -2 * s
